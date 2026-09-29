@@ -86,9 +86,9 @@ describe('reduceScene', () => {
     expect(second.scene.reset).toBeGreaterThan(first.scene.reset);
   });
 
-  it('mutes the surroundings only when the scene focuses something', () => {
+  it('recedes the surroundings only when the scene focuses something', () => {
     const focused = reduceScene(atlas, initialViewerState(), scene([{type: 'focus', target: HEART}, {type: 'highlight', target: HEART}]));
-    expect(focused.emphasis?.context).toBe(0.4);
+    expect(focused.emphasis?.context).toBe(0.28);
     const plain = reduceScene(atlas, initialViewerState(), scene([{type: 'highlight', target: HEART}]));
     expect(plain.emphasis?.context).toBe(1);
   });

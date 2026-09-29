@@ -1,7 +1,7 @@
 import type {Atlas, SystemId} from '@/atlas/anatomy';
 import {DEFAULT_VISIBLE, type SceneState} from '@/atlas/anatomy';
 import {resolveStructure} from '@/anatomy/resolver';
-import type {EmphasisRequest, FocusRequest} from '@/atlas/scene';
+import type {EmphasisRequest, FocusRequest} from '@/atlas/viewer-types';
 import type {BodyAction, BodyScene} from '@/shared/types';
 
 /** Everything the renderer needs. The executor only ever produces this shape. */
@@ -135,5 +135,7 @@ export function reduceScene(atlas: Atlas, state: ViewerState, scene: BodyScene):
   const strong = next.emphasis?.strong?.length
     ? next.emphasis.strong
     : partsForTerms(atlas, scene.structures.map((structure) => structure.conceptId));
-  return {...next, emphasis: requestEmphasis(strong, focuses > 0 ? 0.4 : 1)};
+  // PRD 42: in focus mode the target stays at full strength and the surrounding anatomy
+  // recedes to roughly a quarter, so an organ behind the ribs is still readable.
+  return {...next, emphasis: requestEmphasis(strong, focuses > 0 ? 0.28 : 1)};
 }

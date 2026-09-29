@@ -8,10 +8,7 @@ import {createExplosionLayout} from './explosion-layout';
 import {decodeModelResponse} from './model-download';
 import {PointerTap} from './pointer-tap';
 import {SYSTEMS,type Atlas,type SceneState} from './anatomy';
-/** Camera move asked for by the scene executor. `parts` are atlas part ids; bump `id` to retrigger. */
-export interface FocusRequest {id:number;parts:string[]}
-/** `strong` parts are tinted sage; everything else fades toward neutral by `1 - context`. */
-export interface EmphasisRequest {id:number;strong:string[];context:number}
+import type {EmphasisRequest,FocusRequest} from './viewer-types';
 interface Props {atlas:Atlas;state:SceneState;focusRequest?:FocusRequest|null;emphasis?:EmphasisRequest|null;onSelect:(id:string)=>void;onProgress:(n:number)=>void;onError:(s:string)=>void}
 export default function AnatomyScene({atlas,state,focusRequest,emphasis,onSelect,onProgress,onError}:Props){
  const host=useRef<HTMLDivElement>(null),latest=useRef(state),select=useRef(onSelect),focusRef=useRef(focusRequest),emphRef=useRef(emphasis);
@@ -51,17 +48,18 @@ export default function AnatomyScene({atlas,state,focusRequest,emphasis,onSelect
    for(const t of targets){const dx=Math.max(t.left-x,0,x-t.right),dy=Math.max(t.top-y,0,y-t.bottom),distance=Math.hypot(dx,dy);if(distance>radius)continue;const candidate=distance+Math.hypot(t.x-x,t.y-y)*.025;if(candidate<score){score=candidate;best=t.index;}}
    return best;
   };
-  // Shared by every system material: the shader reads state from textures, colors from these uniforms.
-  const uniformSelect={value:new T.Color(0x059669)},uniformEmphasis={value:new T.Color(0x10b981)},uniformMute={value:0};
+  // Shared by every system material. `uContext` is how much of the surrounding anatomy stays
+  // visible: 1 is the plain body, lower values mute it and stipple it so organs read through.
+  const uniformSelect={value:new T.Color(0x059669)},uniformEmphasis={value:new T.Color(0x10b981)},uniformContext={value:1};
   const materialFor=(system:string)=>{
    const m=new T.MeshStandardMaterial({color:SYSTEMS.find(s=>s.id===system)?.color??'#aebbb8',metalness:.08,roughness:.53,side:T.DoubleSide,transparent:system==='integumentary',opacity:system==='integumentary'?.1:1,depthWrite:system!=='integumentary'});
    m.onBeforeCompile=shader=>{
-    shader.uniforms.partState={value:partTexture};shader.uniforms.selectionState={value:selectionTexture};shader.uniforms.stateWidth={value:width};shader.uniforms.uSelect=uniformSelect;shader.uniforms.uEmphasis=uniformEmphasis;shader.uniforms.uMute=uniformMute;
+    shader.uniforms.partState={value:partTexture};shader.uniforms.selectionState={value:selectionTexture};shader.uniforms.stateWidth={value:width};shader.uniforms.uSelect=uniformSelect;shader.uniforms.uEmphasis=uniformEmphasis;shader.uniforms.uContext=uniformContext;
     shader.vertexShader='attribute float partIndex; uniform sampler2D partState; uniform sampler2D selectionState; uniform float stateWidth; varying float partVisible; varying float partSelected; varying float partEmphasis;\n'+shader.vertexShader;
     shader.vertexShader=shader.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\nvec2 stateUv = vec2((partIndex + 0.5) / stateWidth, 0.5); vec4 state = texture2D(partState, stateUv); transformed += state.xyz; partVisible = state.w; vec2 sel = texture2D(selectionState, stateUv).rg; partSelected = sel.r; partEmphasis = sel.g;');
-    shader.fragmentShader='varying float partVisible; varying float partSelected; varying float partEmphasis; uniform vec3 uSelect; uniform vec3 uEmphasis; uniform float uMute;\n'+shader.fragmentShader;
+    shader.fragmentShader='varying float partVisible; varying float partSelected; varying float partEmphasis; uniform vec3 uSelect; uniform vec3 uEmphasis; uniform float uContext;\nfloat bayer2(vec2 a){ a = floor(a); return fract(a.x * 0.5 + a.y * a.y * 0.75); }\nfloat bayer4(vec2 a){ return bayer2(a * 0.5) * 0.25 + bayer2(a); }\n'+shader.fragmentShader;
     shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\nif (partVisible < 0.5) discard;');
-    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nfloat emphasis = max(partSelected, partEmphasis);\ndiffuseColor.rgb = mix(diffuseColor.rgb, uSelect, partSelected * 0.7);\ndiffuseColor.rgb = mix(diffuseColor.rgb, uEmphasis, partEmphasis * 0.85);\ndiffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.72, 0.75, 0.77), uMute * (1.0 - emphasis));');
+    shader.fragmentShader=shader.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\nfloat emphasis = max(partSelected, partEmphasis);\ndiffuseColor.rgb = mix(diffuseColor.rgb, uSelect, partSelected * 0.7);\ndiffuseColor.rgb = mix(diffuseColor.rgb, uEmphasis, partEmphasis * 0.85);\nif (uContext < 1.0 && emphasis < 0.5) {\n diffuseColor.rgb = mix(diffuseColor.rgb, vec3(0.74, 0.77, 0.79), 1.0 - uContext);\n if (bayer4(gl_FragCoord.xy) / 0.9375 > uContext) discard;\n}');
    };materials.push(m);return m;
   };
   const mats=new Map(SYSTEMS.map(s=>[s.id,materialFor(s.id)]));
@@ -106,7 +104,13 @@ export default function AnatomyScene({atlas,state,focusRequest,emphasis,onSelect
    tweenToTarget.copy(center);tweenToCamera.copy(center).add(new T.Vector3(.2,.1,1).normalize().multiplyScalar(distance));
    tweenElapsed=0;tweenDuration=1.05;tweenActive=true;dirty=true;
   };
-  const resize=()=>{layoutKey='';lastState=null;renderer.setPixelRatio(Math.min(devicePixelRatio,el.clientWidth<768||el.clientHeight<600?1.5:2));camera.aspect=el.clientWidth/el.clientHeight;camera.updateProjectionMatrix();renderer.setSize(el.clientWidth,el.clientHeight);fit(latest.current.view,amount);};const observer=new ResizeObserver(resize);observer.observe(el);
+  const frameFocus=(request:FocusRequest)=>{
+   const wanted=new Set(request.parts),box=new T.Box3();
+   let found=false;
+   atlas.parts.forEach((p,i)=>{if(!wanted.has(p.id))return;box.union(bounds[i].clone().translate(new T.Vector3(data[i*4],data[i*4+1],data[i*4+2])));found=true;});
+   if(found)frameBox(box,1.5);
+  };
+  const resize=()=>{layoutKey='';lastState=null;renderer.setPixelRatio(Math.min(devicePixelRatio,el.clientWidth<768||el.clientHeight<600?1.5:2));camera.aspect=el.clientWidth/el.clientHeight;camera.updateProjectionMatrix();renderer.setSize(el.clientWidth,el.clientHeight);const focused=focusRef.current;if(focused)frameFocus(focused);else fit(latest.current.view,amount);};const observer=new ResizeObserver(resize);observer.observe(el);
   const raycaster=new T.Raycaster(),pointer=new T.Vector2(),tap=new PointerTap(),worldBox=new T.Box3(),hitPoint=new T.Vector3();
   const down=(e:PointerEvent)=>{tweenActive=false;hover.hidden=true;tap.down(e.pointerId,e.clientX,e.clientY,e.pointerType==='touch'?12:5);};
   const move=(e:PointerEvent)=>{tap.move(e.pointerId,e.clientX,e.clientY);if(e.buttons||amount<.5||e.pointerType==='touch'){hover.hidden=true;return;}const rect=el.getBoundingClientRect(),x=e.clientX-rect.left,y=e.clientY-rect.top,index=findTarget(x,y,12);hover.hidden=index<0;renderer.domElement.style.cursor=index<0?'grab':'pointer';if(index>=0){hover.textContent=atlas.parts[index].name;hover.style.left=`${Math.max(8,Math.min(x+14,el.clientWidth-260))}px`;hover.style.top=`${Math.max(8,Math.min(y+18,el.clientHeight-55))}px`;}};
@@ -138,18 +142,13 @@ export default function AnatomyScene({atlas,state,focusRequest,emphasis,onSelect
      const selected=selection.has(p.id);data.set([dx,dy,dz,(s.isolate?selected:visible.has(p.system)||selected)?1:0],i*4);selectedData[i*4]=selected?255:0;selectedData[i*4+1]=strong.has(p.id)?255:0;
      markerPositions.set(data[i*4+3]>.5?[c.x+dx,c.y+dy,c.z+dz]:[10000,10000,10000],i*3);const mesh=pickers[i];if(mesh){mesh.position.set(dx,dy,dz);mesh.updateMatrix();mesh.updateMatrixWorld(true);}
     });partTexture.needsUpdate=true;selectionTexture.needsUpdate=true;markerGeometry.attributes.position.needsUpdate=true;
-    uniformMute.value=emph?Math.min(1,Math.max(0,1-emph.context)):0;
+    uniformContext.value=emph?Math.min(1,Math.max(0,emph.context)):1;
     lastState=s;lastEmphKey=emphKey;lastExtent=amount;dirty=true;
    }
    if(s.view!==lastView||s.reset!==lastReset){fit(s.view,amount);lastView=s.view;lastReset=s.reset;}
    if(moving&&!s.isolate)fit(amount>.5?'front':s.view,Math.max(0,(amount-.3)/.7));
    const fr=focusRef.current;
-   if(fr&&fr.id!==lastFocusId){
-    lastFocusId=fr.id;
-    const box=new T.Box3();let found=false;
-    atlas.parts.forEach((p,i)=>{if(!fr.parts.includes(p.id))return;box.union(bounds[i].clone().translate(new T.Vector3(data[i*4],data[i*4+1],data[i*4+2])));found=true;});
-    if(found)frameBox(box,1.5);
-   }
+   if(fr&&fr.id!==lastFocusId){lastFocusId=fr.id;frameFocus(fr);}
    const isolateKey=s.isolate?s.selected.join(',')+':'+s.reset+':'+camera.aspect:'';
    if(isolateKey!==lastIsolate||(s.isolate&&moving)){
     if(s.isolate){const box=new T.Box3();atlas.parts.forEach((p,i)=>{if(s.selected.includes(p.id))box.union(bounds[i].clone().translate(new T.Vector3(data[i*4],data[i*4+1],data[i*4+2])));});frameBox(box,1.3);}

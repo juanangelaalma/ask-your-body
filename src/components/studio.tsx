@@ -128,7 +128,9 @@ export function Studio() {
         </div>
       </header>
 
-      <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(240px,42vh)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_minmax(400px,440px)] lg:grid-rows-1">
+      {/* The chat column is a fixed width so its content can never resize the 3D canvas,
+          which would re-frame the camera mid-journey. */}
+      <main className="grid min-h-0 flex-1 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(240px,42vh)_minmax(0,1fr)] lg:grid-cols-[minmax(0,1fr)_420px] lg:grid-rows-1">
         {atlas ? (
           <ViewerPane
             atlas={atlas}
