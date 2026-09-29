@@ -1,0 +1,12 @@
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+*.tsbuildinfo
+next-env.d.ts
+
+# Large BodyParts3D-derived geometry. Regenerate with scripts/fetch-models.mjs.
+public/models/*.bin
+public/models/*.bin.gz

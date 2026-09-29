@@ -1,0 +1,362 @@
+@import 'tailwindcss';
+
+/* Verdana Health, mapped onto Tailwind tokens. Navy carries the rhythm, sage is interactive only. */
+@theme {
+  --font-display: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-dm-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-fira-code), ui-monospace, monospace;
+
+  --color-ink: #0f172a;
+  --color-ink-hover: #020617;
+  --color-quiet: #64748b;
+  --color-quiet-strong: #475569;
+  /* #059669 is the design system sage, but it only reaches 3.8:1 on white. Text and links
+     use the darker sage below; fills and highlights keep the original. */
+  --color-sage: #059669;
+  --color-sage-bright: #10b981;
+  --color-sage-text: #047857;
+  --color-sage-deep: #047857;
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-line: #e2e8f0;
+  --color-line-soft: #f1f5f9;
+  --color-flag: #eab308;
+  --color-flag-deep: #a16207;
+  --color-alert: #ef4444;
+  --color-alert-deep: #dc2626;
+  --color-info: #0ea5e9;
+
+  --radius-chip: 4px;
+  --radius-control: 8px;
+  --radius-panel: 12px;
+  --radius-hero: 16px;
+
+  --shadow-subtle: 0 1px 3px rgb(15 23 42 / 0.03);
+  --shadow-card: 0 2px 6px rgb(15 23 42 / 0.05);
+  --shadow-raised: 0 4px 16px rgb(15 23 42 / 0.07);
+  --shadow-panel: 0 8px 32px rgb(15 23 42 / 0.1);
+
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    background-color: var(--color-canvas);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-ink);
+    outline-offset: 2px;
+    border-radius: var(--radius-chip);
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-sage) 22%, transparent);
+  }
+}
+
+/* Typography scale from the design system. */
+.type-display {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3.4vw, 40px);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.type-h1 {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.type-h2 {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+.type-h3 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+.type-h4 {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+.type-body-lg {
+  font-size: 18px;
+  line-height: 1.6;
+}
+.type-body-sm {
+  font-size: 14px;
+  line-height: 1.5;
+}
+.type-caption {
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.type-code {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.6;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Buttons. Radius stays 8px across sizes; only padding and type scale change. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: var(--radius-control);
+  font-family: var(--font-sans);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition-property: scale, background-color, color, border-color, opacity;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+.btn:active:not(:disabled) {
+  scale: 0.96;
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-sm {
+  padding: 6px 14px;
+  font-size: 14px;
+  min-height: 32px;
+}
+.btn-md {
+  padding: 10px 22px;
+  font-size: 14px;
+  min-height: 42px;
+}
+.btn-lg {
+  padding: 12px 28px;
+  font-size: 16px;
+  min-height: 48px;
+}
+.btn-primary {
+  background: var(--color-ink);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-ink-hover);
+}
+.btn-secondary {
+  background: transparent;
+  color: var(--color-ink);
+  border: 1px solid var(--color-ink);
+}
+.btn-secondary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--color-ink) 4%, transparent);
+}
+.btn-ghost {
+  background: transparent;
+  color: var(--color-quiet-strong);
+}
+.btn-ghost:hover:not(:disabled) {
+  background: var(--color-line-soft);
+  color: var(--color-ink);
+}
+
+/* Chips. Uppercase with tracking is the medical-grade label treatment. */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: var(--radius-chip);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.4;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.chip-filter {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  border: 1px solid var(--color-line);
+  text-transform: none;
+  letter-spacing: 0;
+  cursor: pointer;
+  transition-property: scale, background-color, color, border-color;
+  transition-duration: 140ms;
+  transition-timing-function: ease;
+}
+.chip-filter:hover {
+  border-color: var(--color-ink);
+}
+.chip-filter:active {
+  scale: 0.96;
+}
+.chip-filter[aria-pressed='true'] {
+  background: var(--color-ink);
+  color: #fff;
+  border-color: var(--color-ink);
+}
+.chip-sage {
+  background: color-mix(in srgb, #22c55e 8%, transparent);
+  color: var(--color-sage-text);
+}
+.chip-flag {
+  background: color-mix(in srgb, var(--color-flag) 8%, transparent);
+  color: var(--color-flag-deep);
+}
+.chip-alert {
+  background: color-mix(in srgb, var(--color-alert) 8%, transparent);
+  color: var(--color-alert-deep);
+}
+
+/* Surfaces. Borders communicate structure here, so shadows stay off the default card. */
+.surface-flat {
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+}
+.surface-raised {
+  background: var(--color-surface);
+  border-radius: var(--radius-control);
+  box-shadow: var(--shadow-raised);
+}
+.tooltip-dark {
+  background: var(--color-ink);
+  color: var(--color-canvas);
+  border-radius: var(--radius-control);
+  padding: 6px 12px;
+  font-size: 12px;
+  line-height: 1.4;
+  max-width: 240px;
+  box-shadow: var(--shadow-panel);
+}
+
+/* Motion. Entrances are staggered and short; exits are softer than entrances. */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.rise-in {
+  animation: rise-in 240ms var(--ease-out-strong) both;
+}
+@keyframes settle-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.settle-in {
+  animation: settle-in 220ms var(--ease-out-strong) both;
+}
+
+/* Touch layouts need a 44px tap target, which overrides the 32px small-button size. */
+@media (max-width: 767px) {
+  .btn,
+  .btn-sm,
+  .btn-md,
+  .btn-lg,
+  .chip,
+  .chip-filter,
+  button,
+  a.btn {
+    min-height: 44px;
+  }
+  button,
+  a.btn {
+    min-width: 44px;
+  }
+  .chip,
+  .chip-filter {
+    padding-inline: 14px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise-in,
+  .settle-in {
+    animation: none;
+  }
+  .btn,
+  .chip-filter {
+    transition-duration: 1ms;
+  }
+  .btn:active:not(:disabled),
+  .chip-filter:active {
+    scale: 1;
+  }
+}
+
+/* The renderer reads its host size, so the host must be pinned to the canvas box. */
+.scene {
+  position: absolute;
+  inset: 0;
+}
+.scene-canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  cursor: grab;
+}
+.scene-canvas canvas:active {
+  cursor: grabbing;
+}
+.part-hover {
+  position: absolute;
+  z-index: 45;
+  pointer-events: none;
+  background: var(--color-ink);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: var(--radius-control);
+  font-size: 13px;
+  line-height: 1.4;
+  text-transform: capitalize;
+  box-shadow: var(--shadow-panel);
+  max-width: 250px;
+}
+.part-hover[hidden] {
+  display: none;
+}
+
+.scroll-quiet {
+  scrollbar-width: thin;
+  scrollbar-color: #cbd5e1 transparent;
+}
+.scroll-quiet::-webkit-scrollbar {
+  width: 8px;
+}
+.scroll-quiet::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+}
